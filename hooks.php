@@ -64,26 +64,6 @@ add_hook('ClientAreaHeadOutput', 1, function ($vars) {
         $css .= '<style>.bh-widget{' . implode(';', $cssVars) . '}</style>' . "\n";
     }
 
-    // Bulletproof Inline CSS for UI Injections to bypass any external loading/caching issues
-    $css .= <<<CSS
-<style>
-.bh-dept-status-wrapper { margin-top: 12px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #64748b; font-weight: 500; }
-.bh-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1; }
-.bh-badge-small { padding: 2px 6px; font-size: 10px; }
-.bh-online { background-color: #e6f4ea; color: #1e8e3e; }
-.bh-offline { background-color: #fce8e6; color: #d93025; }
-.bh-holiday { background-color: #f3e8fd; color: #9333ea; }
-.bh-dept-hours { color: #64748b; }
-.bh-nav-status { margin-top: 4px; line-height: 1.4; display: block; }
-.bh-nav-hours { font-size: 11px; color: #94a3b8; }
-.bh-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; position: relative; }
-.bh-dot--online { background: #1e8e3e; animation: bh-pulse 2s infinite; }
-.bh-dot--offline { background: #d93025; }
-.bh-dot--holiday { background: #9333ea; }
-@keyframes bh-pulse { 0% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(30, 142, 62, 0); } 100% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0); } }
-</style>
-CSS;
-
     return $css;
 });
 
@@ -102,82 +82,6 @@ add_hook('ClientAreaFooterOutput', 1, function ($vars) {
         $interval = $settingsRepo->get('ajax_interval', '60');
         $js .= '<div id="bh-live-config" data-interval="' . (int) $interval . '" data-endpoint="index.php?m=business_hours&action=status" style="display:none"></div>' . "\n";
         $js .= '<script src="' . $bootstrap->getAssetUrl('js/live-update.js') . '"></script>' . "\n";
-    }
-
-    // Dynamic UI Injector for submitticket.php (bypasses Lagom's strip_tags)
-    if (isset($vars['filename']) && $vars['filename'] === 'submitticket') {
-        $availService = new AvailabilityService();
-        $deptData = [];
-        
-        try {
-            $myDepts = \Illuminate\Database\Capsule\Manager::table(Bootstrap::TABLE_PREFIX . 'departments')
-                ->whereNotNull('whmcs_dept_id')
-                ->where('status', 'active')
-                ->get(['id', 'whmcs_dept_id', 'timezone']);
-            
-            foreach ($myDepts as $md) {
-                $deptStatus = $availService->getCurrentStatus($md->id);
-                $isOpen = $deptStatus['is_open'] ?? false;
-                $label = $deptStatus['label'] ?? 'Unknown';
-                $hours = $deptStatus['today_hours'] ?? '';
-                
-                $badgeClass = $isOpen ? 'bh-online' : 'bh-offline';
-                $dotClass = $isOpen ? 'bh-dot--online' : 'bh-dot--offline';
-                if (isset($deptStatus['source']) && $deptStatus['source'] === 'holiday') {
-                    $badgeClass = 'bh-holiday';
-                    $dotClass = 'bh-dot--holiday';
-                }
-
-                $html = '<div class="bh-dept-status-wrapper">';
-                $html .= '<span class="bh-badge ' . $badgeClass . '"><span class="bh-dot ' . $dotClass . '"></span> ' . htmlspecialchars($label) . '</span>';
-                if ($hours) {
-                    $html .= '<span class="bh-dept-hours">' . htmlspecialchars($hours) . ' (' . htmlspecialchars($md->timezone) . ')</span>';
-                }
-                $html .= '</div>';
-                
-                $deptData[$md->whmcs_dept_id] = $html;
-            }
-        } catch (\Exception $e) {}
-
-        if (!empty($deptData)) {
-            $jsonMap = json_encode($deptData);
-            $js .= <<<HTML
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var deptData = {$jsonMap};
-    
-    // Attempt to find Lagom department cards
-    // Lagom uses links or divs that eventually contain submitticket.php?step=2&deptid=XX
-    var deptLinks = document.querySelectorAll('a[href*="deptid="], div[data-id]');
-    
-    deptLinks.forEach(function(el) {
-        var deptId = null;
-        if (el.hasAttribute('href')) {
-            var match = el.getAttribute('href').match(/deptid=(\d+)/);
-            if (match) deptId = match[1];
-        } else if (el.hasAttribute('data-id')) {
-            deptId = el.getAttribute('data-id');
-        }
-        
-        if (deptId && deptData[deptId]) {
-            // Find the description or inner container to append the badge
-            var target = el.querySelector('.desc, .description, p') || el;
-            
-            // If target is the main container, append to it, else append after the description text
-            var wrapper = document.createElement('div');
-            wrapper.innerHTML = deptData[deptId];
-            
-            if (target === el) {
-                el.appendChild(wrapper.firstChild);
-            } else {
-                target.appendChild(wrapper.firstChild);
-            }
-        }
-    });
-});
-</script>
-HTML;
-        }
     }
 
     return $js;
@@ -255,8 +159,49 @@ add_hook('ClientAreaPageSubmitTicket', 1, function ($vars) {
             'bh_status_label' => $status['label'],
         ];
 
-        // No longer modifying $vars['departments'] via PHP to avoid Lagom strip_tags filter.
-        // Handled via JS in ClientAreaFooterOutput instead.
+        // Native injection into the $departments array using standard Bootstrap classes
+        if (isset($vars['departments']) && is_array($vars['departments'])) {
+            $myDepts = \Illuminate\Database\Capsule\Manager::table(Bootstrap::TABLE_PREFIX . 'departments')
+                ->whereNotNull('whmcs_dept_id')
+                ->where('status', 'active')
+                ->get(['id', 'whmcs_dept_id', 'timezone']);
+
+            $deptMap = [];
+            foreach ($myDepts as $md) {
+                $deptMap[$md->whmcs_dept_id] = [
+                    'id'       => $md->id,
+                    'timezone' => $md->timezone
+                ];
+            }
+
+            foreach ($vars['departments'] as &$dept) {
+                if (isset($deptMap[$dept['id']])) {
+                    $myDeptId = $deptMap[$dept['id']]['id'];
+                    $tz       = $deptMap[$dept['id']]['timezone'];
+
+                    $deptStatus = $availService->getCurrentStatus($myDeptId);
+                    $isOpen = $deptStatus['is_open'] ?? false;
+                    $label  = $deptStatus['label'] ?? 'Unknown';
+                    $hours  = $deptStatus['today_hours'] ?? '';
+
+                    $badgeClass = $isOpen ? 'label label-success' : 'label label-danger';
+                    if (isset($deptStatus['source']) && $deptStatus['source'] === 'holiday') {
+                        $badgeClass = 'label label-info';
+                    }
+
+                    $html = '<div style="margin-top: 10px;">';
+                    $html .= '<span class="' . $badgeClass . '">' . htmlspecialchars($label) . '</span>';
+                    
+                    if ($hours) {
+                        $html .= ' <span class="text-muted small" style="margin-left: 8px;">' . htmlspecialchars($hours) . ' (' . htmlspecialchars($tz) . ')</span>';
+                    }
+                    $html .= '</div>';
+
+                    $dept['description'] .= $html;
+                }
+            }
+            $returnVars['departments'] = $vars['departments'];
+        }
 
         return $returnVars;
     } catch (\Exception $e) {
@@ -281,14 +226,16 @@ function bh_process_menu_item(\WHMCS\View\Menu\Item $item, $availService, $deptM
                 $label = $deptStatus['label'] ?? 'Unknown';
                 $hours = $deptStatus['today_hours'] ?? '';
                 
-                $badgeClass = $isOpen ? 'bh-online' : 'bh-offline';
-                $dotClass = $isOpen ? 'bh-dot--online' : 'bh-dot--offline';
+                $badgeClass = $isOpen ? 'label label-success' : 'label label-danger';
+                if (isset($deptStatus['source']) && $deptStatus['source'] === 'holiday') {
+                    $badgeClass = 'label label-info';
+                }
                 
                 $htmlLabel = $item->getLabel();
-                $htmlLabel .= '<div class="bh-nav-status">';
-                $htmlLabel .= '<span class="bh-badge bh-badge-small ' . $badgeClass . '"><span class="bh-dot ' . $dotClass . '"></span> ' . htmlspecialchars($label) . '</span>';
+                $htmlLabel .= '<div style="margin-top: 4px; line-height: 1.4;">';
+                $htmlLabel .= '<span class="' . $badgeClass . '" style="font-size: 10px; padding: 2px 6px;">' . htmlspecialchars($label) . '</span>';
                 if ($hours) {
-                    $htmlLabel .= '<br><span class="bh-nav-hours">' . htmlspecialchars($hours) . ' (' . htmlspecialchars($tz) . ')</span>';
+                    $htmlLabel .= '<br><span class="text-muted small" style="font-size: 11px;">' . htmlspecialchars($hours) . ' (' . htmlspecialchars($tz) . ')</span>';
                 }
                 $htmlLabel .= '</div>';
                 
@@ -390,27 +337,24 @@ function buildSidebarWidget($data)
     $todayHours = $status['today_hours'] ?? 'N/A';
     $nextChange = $status['next_change'] ?? '';
 
-    $dotClass = $isOpen ? 'bh-dot--online' : 'bh-dot--offline';
-    $badgeClass = $isOpen ? 'bh-status-badge--online' : 'bh-status-badge--offline';
+    $badgeClass = $isOpen ? 'label label-success' : 'label label-danger';
 
     if (isset($status['source']) && $status['source'] === 'holiday') {
-        $badgeClass = 'bh-status-badge--holiday';
-        $dotClass   = 'bh-dot--holiday';
+        $badgeClass = 'label label-info';
     }
 
     $html = '<div class="bh-widget" data-bh-widget="sidebar">';
 
     // Status
-    $html .= '<div class="bh-sidebar__row">';
+    $html .= '<div class="bh-sidebar__row" style="display:flex; justify-content:space-between; margin-bottom:10px;">';
     $html .= '<span class="bh-sidebar__label">Status</span>';
-    $html .= '<span class="bh-status-badge ' . $badgeClass . '" data-bh-status="all">';
-    $html .= '<span class="bh-dot ' . $dotClass . '"></span>';
+    $html .= '<span class="' . $badgeClass . '" data-bh-status="all">';
     $html .= '<span class="bh-status-label">' . htmlspecialchars($label) . '</span>';
     $html .= '</span>';
     $html .= '</div>';
 
     // Today's Hours
-    $html .= '<div class="bh-sidebar__row">';
+    $html .= '<div class="bh-sidebar__row" style="display:flex; justify-content:space-between; margin-bottom:10px;">';
     $html .= '<span class="bh-sidebar__label">Today</span>';
     $html .= '<span class="bh-sidebar__value" data-bh-hours="all">' . htmlspecialchars($todayHours) . '</span>';
     $html .= '</div>';
