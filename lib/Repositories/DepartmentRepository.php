@@ -180,4 +180,77 @@ class DepartmentRepository
             ->where('status', 'active')
             ->count();
     }
+
+    /**
+     * Synchronize departments from WHMCS core tblticketdepartments
+     *
+     * @return int Number of synchronized departments
+     */
+    public function syncWhmcsDepartments()
+    {
+        // Safely add whmcs_dept_id column if it doesn't exist
+        $columns = Capsule::schema()->getColumnListing($this->table);
+        if (!in_array('whmcs_dept_id', $columns)) {
+            Capsule::schema()->table($this->table, function ($table) {
+                $table->unsignedInteger('whmcs_dept_id')->nullable()->after('id')->index();
+            });
+        }
+
+        // Get WHMCS departments
+        $whmcsDepts = [];
+        try {
+            if (Capsule::schema()->hasTable('tblticketdepartments')) {
+                $whmcsDepts = Capsule::table('tblticketdepartments')->get();
+            }
+        } catch (\Exception $e) {
+            return 0; // Ignore if table doesn't exist or other error
+        }
+
+        $synced = 0;
+        $order = $this->getActiveCount() + 1;
+
+        foreach ($whmcsDepts as $wDept) {
+            $exists = Capsule::table($this->table)->where('whmcs_dept_id', $wDept->id)->first();
+            
+            if ($exists) {
+                // Update name
+                Capsule::table($this->table)
+                    ->where('id', $exists->id)
+                    ->update([
+                        'name' => $wDept->name,
+                        'description' => $wDept->description,
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ]);
+            } else {
+                // Insert new mapped department
+                $slug = Department::generateSlug($wDept->name);
+                
+                // Ensure unique slug
+                $originalSlug = $slug;
+                $counter = 1;
+                while ($this->slugExists($slug)) {
+                    $slug = $originalSlug . '-' . $counter;
+                    $counter++;
+                }
+
+                Capsule::table($this->table)->insert([
+                    'whmcs_dept_id' => $wDept->id,
+                    'name' => $wDept->name,
+                    'slug' => $slug,
+                    'description' => $wDept->description,
+                    'timezone' => date_default_timezone_get() ?: 'America/New_York',
+                    'is_24x7' => 0,
+                    'sort_order' => $order++,
+                    'status' => 'active',
+                    'color' => '#3b82f6',
+                    'icon' => 'fa-ticket-alt',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ]);
+            }
+            $synced++;
+        }
+
+        return $synced;
+    }
 }

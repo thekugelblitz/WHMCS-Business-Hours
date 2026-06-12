@@ -24,7 +24,7 @@ class SettingsRepository
      */
     const DEFAULTS = [
         // General
-        'company_timezone'       => 'America/New_York',
+        'company_timezone'       => '', // Dynamically resolved to date_default_timezone_get()
         'time_format'            => '12h',
         'date_format'            => 'M j, Y',
         'show_timezone'          => '1',
@@ -106,6 +106,9 @@ class SettingsRepository
 
         // Return the default from our defaults array, or the provided default
         if ($default === null && isset(self::DEFAULTS[$key])) {
+            if ($key === 'company_timezone' && empty(self::DEFAULTS[$key])) {
+                return date_default_timezone_get() ?: 'UTC';
+            }
             return self::DEFAULTS[$key];
         }
 
@@ -179,6 +182,10 @@ class SettingsRepository
         $results = Capsule::table($this->table)->get();
 
         $settings = self::DEFAULTS;
+        if (empty($settings['company_timezone'])) {
+            $settings['company_timezone'] = date_default_timezone_get() ?: 'UTC';
+        }
+        
         foreach ($results as $row) {
             $settings[$row->setting_key] = $row->setting_value;
         }

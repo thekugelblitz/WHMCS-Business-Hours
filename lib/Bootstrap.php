@@ -159,7 +159,8 @@ class Bootstrap
      */
     public function getAssetUrl($asset)
     {
-        return 'modules/addons/' . self::MODULE_NAME . '/assets/' . $asset;
+        $systemUrl = isset($GLOBALS['CONFIG']['SystemURL']) ? rtrim($GLOBALS['CONFIG']['SystemURL'], '/') . '/' : '';
+        return $systemUrl . 'modules/addons/' . self::MODULE_NAME . '/assets/' . $asset;
     }
 
     /**

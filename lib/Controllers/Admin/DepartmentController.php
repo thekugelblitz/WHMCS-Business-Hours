@@ -65,6 +65,9 @@ class DepartmentController
      */
     private function renderList($moduleLink, $lang)
     {
+        // Auto-sync WHMCS core ticket departments
+        $this->repo->syncWhmcsDepartments();
+
         $departments = $this->repo->getAll();
         $bootstrap = \BusinessHours\Bootstrap::getInstance();
 
