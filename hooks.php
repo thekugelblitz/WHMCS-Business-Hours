@@ -87,6 +87,22 @@ add_hook('ClientAreaFooterOutput', 1, function ($vars) {
     return $js;
 });
 
+/**
+ * Show holiday announcement banner on client area pages
+ */
+add_hook('ClientAreaPage', 1, function ($vars) {
+    try {
+        $settingsRepo = new SettingsRepository();
+
+        $availService = new AvailabilityService();
+        $status = $availService->getCurrentStatus();
+
+        return [
+            'bh_status'       => $status,
+            'bh_is_open'      => $status['is_open'],
+            'bh_status_label' => $status['label'],
+            'bh_today_hours'  => $status['today_hours'] ?? 'N/A',
+        ];
     } catch (\Exception $e) {
         return [];
     }
