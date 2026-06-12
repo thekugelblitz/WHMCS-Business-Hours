@@ -1,0 +1,413 @@
+/**
+ * Business Hours & Support Availability - Admin CSS
+ * Scoped under .bh-admin to avoid conflicts with WHMCS admin Bootstrap
+ */
+
+/* ---- Header ---- */
+.bh-admin-header {
+    margin-bottom: 20px;
+    padding: 15px 0;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.bh-admin-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 5px 0;
+}
+
+.bh-admin-header h1 i {
+    color: #3b82f6;
+    margin-right: 8px;
+}
+
+.bh-admin-subtitle {
+    color: #6b7280;
+    margin: 0;
+    font-size: 14px;
+}
+
+/* ---- Navigation ---- */
+.bh-admin-nav {
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.bh-admin-nav > li > a {
+    color: #6b7280;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    padding: 10px 18px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.bh-admin-nav > li > a:hover {
+    color: #3b82f6;
+    background: transparent;
+    border-bottom-color: #93c5fd;
+}
+
+.bh-admin-nav > li.active > a,
+.bh-admin-nav > li.active > a:hover {
+    color: #3b82f6;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid #3b82f6;
+}
+
+.bh-admin-nav > li > a i {
+    margin-right: 5px;
+}
+
+/* ---- Stats Cards ---- */
+.bh-stats-row {
+    margin-bottom: 20px;
+}
+
+.bh-stat-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: box-shadow 0.2s ease;
+    margin-bottom: 15px;
+}
+
+.bh-stat-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.bh-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.bh-stat-departments .bh-stat-icon { background: #dbeafe; color: #3b82f6; }
+.bh-stat-open .bh-stat-icon { background: #dcfce7; color: #22c55e; }
+.bh-stat-holidays .bh-stat-icon { background: #ede9fe; color: #8b5cf6; }
+.bh-stat-time .bh-stat-icon { background: #fef3c7; color: #f59e0b; }
+
+.bh-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1f2937;
+    line-height: 1.2;
+}
+
+.bh-stat-label {
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+/* ---- Panels ---- */
+.bh-panel {
+    border-radius: 8px;
+    border-color: #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    margin-bottom: 20px;
+}
+
+.bh-panel > .panel-heading {
+    background: #f9fafb;
+    border-radius: 8px 8px 0 0;
+    border-bottom-color: #e5e7eb;
+}
+
+.bh-panel > .panel-heading .panel-title {
+    font-weight: 600;
+    font-size: 15px;
+    color: #374151;
+}
+
+.bh-panel > .panel-heading .panel-title i {
+    margin-right: 6px;
+    color: #6b7280;
+}
+
+/* ---- Badges ---- */
+.bh-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+}
+
+.bh-badge-online {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.bh-badge-offline {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.bh-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.bh-badge-online .bh-status-dot {
+    background: #22c55e;
+    animation: bh-pulse 2s ease-in-out infinite;
+}
+
+.bh-badge-offline .bh-status-dot {
+    background: #ef4444;
+}
+
+@keyframes bh-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* ---- Color Swatch ---- */
+.bh-color-swatch,
+.bh-dept-color {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 4px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.bh-color-input {
+    width: 60px !important;
+    height: 38px !important;
+    padding: 2px !important;
+    cursor: pointer;
+}
+
+/* ---- Actions Bar ---- */
+.bh-actions-bar {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.bh-inline-select {
+    width: auto !important;
+    display: inline-block !important;
+}
+
+.bh-actions {
+    white-space: nowrap;
+}
+
+/* ---- Status Table ---- */
+.bh-status-table td {
+    vertical-align: middle;
+}
+
+/* ---- Holiday List ---- */
+.bh-holiday-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.bh-holiday-list li {
+    padding: 10px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.bh-holiday-list li:last-child {
+    border-bottom: none;
+}
+
+.bh-holiday-list li i {
+    color: #8b5cf6;
+    margin-right: 6px;
+}
+
+/* ---- Quick Actions ---- */
+.bh-quick-actions .btn {
+    margin-bottom: 6px;
+    text-align: left;
+}
+
+.bh-quick-actions .btn i {
+    margin-right: 6px;
+}
+
+/* ---- Schedule Form ---- */
+.bh-day-row {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.bh-day-header {
+    background: #f9fafb;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.bh-day-header strong {
+    font-size: 14px;
+    color: #374151;
+}
+
+.bh-day-slots {
+    padding: 10px 15px;
+    min-height: 20px;
+}
+
+.bh-slot-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.bh-time-input {
+    width: 130px !important;
+}
+
+.bh-slot-dash {
+    color: #9ca3af;
+    font-size: 16px;
+}
+
+.bh-slot-label {
+    width: 150px !important;
+}
+
+/* ---- Calendar Grid ---- */
+.bh-calendar-grid {
+    overflow-x: auto;
+}
+
+.bh-cal-header,
+.bh-cal-row {
+    display: flex;
+}
+
+.bh-cal-time-col {
+    width: 70px;
+    flex-shrink: 0;
+    padding: 6px 8px;
+    font-size: 11px;
+    color: #6b7280;
+    text-align: right;
+}
+
+.bh-cal-day-col {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.bh-cal-cell {
+    flex: 1;
+    height: 32px;
+    border: 1px solid #f3f4f6;
+    margin: 1px;
+    border-radius: 3px;
+    transition: background 0.15s;
+}
+
+.bh-cal-active {
+    background: #dbeafe;
+    border-color: #93c5fd;
+}
+
+.bh-cal-empty {
+    background: #f9fafb;
+}
+
+/* ---- Settings ---- */
+.bh-settings-tabs {
+    margin-bottom: 0;
+}
+
+.bh-tab-content {
+    padding-top: 15px;
+}
+
+.bh-settings-submit {
+    margin-top: 20px;
+    padding: 15px 0;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* ---- Analytics Chart ---- */
+.bh-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.bh-chart-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 28px;
+}
+
+.bh-chart-fill {
+    height: 20px;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    border-radius: 4px;
+    min-width: 2px;
+    transition: width 0.5s ease;
+}
+
+.bh-chart-label {
+    font-size: 11px;
+    color: #6b7280;
+    width: 50px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.bh-chart-value {
+    font-size: 12px;
+    color: #374151;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+    .bh-slot-row {
+        flex-wrap: wrap;
+    }
+    .bh-time-input {
+        width: 100% !important;
+    }
+    .bh-slot-label {
+        width: 100% !important;
+    }
+}

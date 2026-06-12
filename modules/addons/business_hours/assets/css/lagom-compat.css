@@ -1,0 +1,79 @@
+/**
+ * Business Hours - Lagom Theme Compatibility CSS
+ * Loaded only when Lagom theme is detected
+ */
+
+/* Inherit Lagom card styling */
+.lagom2 .bh-widget,
+[class*="lagom"] .bh-widget {
+    --bh-border-radius: 10px;
+    --bh-font-family: inherit;
+}
+
+/* Lagom sidebar panels */
+.lagom2 .bh-sidebar,
+[class*="lagom"] .bh-sidebar {
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.lagom2 .bh-sidebar__header,
+[class*="lagom"] .bh-sidebar__header {
+    background: transparent;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 18px 20px;
+}
+
+/* Lagom card adjustments */
+.lagom2 .bh-card,
+[class*="lagom"] .bh-card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-radius: 10px;
+}
+
+/* Lagom floating indicator */
+.lagom2 .bh-floating,
+[class*="lagom"] .bh-floating {
+    border: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Lagom schedule table */
+.lagom2 .bh-schedule-table,
+[class*="lagom"] .bh-schedule-table {
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Lagom "Futuristic" style */
+.lagom-futuristic .bh-widget {
+    --bh-border-radius: 16px;
+}
+
+.lagom-futuristic .bh-card {
+    border-radius: 16px;
+}
+
+.lagom-futuristic .bh-sidebar {
+    border-radius: 16px;
+}
+
+/* Lagom "Modern" style */
+.lagom-modern .bh-widget {
+    --bh-border-radius: 8px;
+}
+
+/* Lagom dark mode specific */
+.lagom2.dark-mode .bh-sidebar,
+.lagom2[data-theme="dark"] .bh-sidebar {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.lagom2.dark-mode .bh-card,
+.lagom2[data-theme="dark"] .bh-card {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}

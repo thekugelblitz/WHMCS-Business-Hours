@@ -1,0 +1,51 @@
+/**
+ * Business Hours - Dark Mode CSS
+ * Auto-detects dark mode via prefers-color-scheme and Lagom dark mode classes
+ */
+
+/* System dark mode preference */
+@media (prefers-color-scheme: dark) {
+    .bh-widget {
+        --bh-bg-primary: #1e293b;
+        --bh-bg-secondary: #0f172a;
+        --bh-bg-tertiary: #334155;
+
+        --bh-text-primary: #f1f5f9;
+        --bh-text-secondary: #94a3b8;
+        --bh-text-muted: #64748b;
+
+        --bh-border-color: #334155;
+        --bh-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        --bh-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* Lagom dark mode class */
+.dark-mode .bh-widget,
+[data-theme="dark"] .bh-widget,
+.lagom-dark .bh-widget,
+body.dark .bh-widget {
+    --bh-bg-primary: #1e293b;
+    --bh-bg-secondary: #0f172a;
+    --bh-bg-tertiary: #334155;
+
+    --bh-text-primary: #f1f5f9;
+    --bh-text-secondary: #94a3b8;
+    --bh-text-muted: #64748b;
+
+    --bh-border-color: #334155;
+    --bh-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --bh-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+/* Banner in dark mode */
+@media (prefers-color-scheme: dark) {
+    .bh-banner {
+        background: linear-gradient(135deg, #6d28d9, #7c3aed);
+    }
+}
+
+.dark-mode .bh-banner,
+[data-theme="dark"] .bh-banner {
+    background: linear-gradient(135deg, #6d28d9, #7c3aed);
+}
