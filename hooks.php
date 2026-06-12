@@ -218,13 +218,39 @@ function bh_process_menu_item(\WHMCS\View\Menu\Item $item, $availService, $deptM
 }
 
 /**
- * Hook into ClientAreaPrimaryNavbar to add Support Hours dropdown and modify existing links
+ * Hook into ClientAreaPrimaryNavbar just to modify existing links
  */
 add_hook('ClientAreaPrimaryNavbar', 1, function (\WHMCS\View\Menu\Item $navbar) {
     try {
         $availService = new AvailabilityService();
+        $myDepts = \Illuminate\Database\Capsule\Manager::table(Bootstrap::TABLE_PREFIX . 'departments')
+            ->whereNotNull('whmcs_dept_id')
+            ->where('status', 'active')
+            ->get(['id', 'whmcs_dept_id', 'timezone']);
+
+        $deptMap = [];
+        foreach ($myDepts as $md) {
+            $deptMap[$md->whmcs_dept_id] = [
+                'id' => $md->id,
+                'timezone' => $md->timezone
+            ];
+        }
         
-        // 1. Add the main Support Hours dropdown to the header
+        // Modify any existing links in the navbar recursively
+        foreach ($navbar->getChildren() as $child) {
+            bh_process_menu_item($child, $availService, $deptMap);
+        }
+    } catch (\Exception $e) {}
+});
+
+/**
+ * Hook into ClientAreaSecondaryNavbar to add the Support Hours header dropdown
+ */
+add_hook('ClientAreaSecondaryNavbar', 1, function (\WHMCS\View\Menu\Item $navbar) {
+    try {
+        $availService = new AvailabilityService();
+        
+        // 1. Add the main Support Hours dropdown to the header (Secondary Navbar is the top header in Lagom Left Menu)
         $overallStatus = $availService->getCurrentStatus();
         $isOpen = $overallStatus['is_open'] ?? false;
         $label  = $overallStatus['label'] ?? 'Unknown';
@@ -237,9 +263,9 @@ add_hook('ClientAreaPrimaryNavbar', 1, function (\WHMCS\View\Menu\Item $navbar) 
         $supportNav = $navbar->addChild('SupportHoursHeader', [
             'label' => 'Support: <span class="' . $badgeClass . '">' . htmlspecialchars($label) . '</span>',
             'uri' => '#',
-            'order' => 99,
+            'order' => 1, // High priority to show on the left of secondary nav
         ]);
-        $supportNav->setExtras(['html' => true]);
+        $supportNav->setExtras(['html' => true, 'icon' => 'far fa-clock']);
 
         // Fetch all active departments to build the dropdown children
         $myDepts = \Illuminate\Database\Capsule\Manager::table(Bootstrap::TABLE_PREFIX . 'departments')
@@ -290,28 +316,6 @@ add_hook('ClientAreaPrimaryNavbar', 1, function (\WHMCS\View\Menu\Item $navbar) 
                 bh_process_menu_item($child, $availService, $deptMap);
             }
         }
-    } catch (\Exception $e) {}
-});
-
-add_hook('ClientAreaSecondaryNavbar', 1, function (\WHMCS\View\Menu\Item $navbar) {
-    try {
-        $availService = new AvailabilityService();
-        $deptMap = [];
-        $myDepts = \Illuminate\Database\Capsule\Manager::table(Bootstrap::TABLE_PREFIX . 'departments')
-            ->whereNotNull('whmcs_dept_id')
-            ->where('status', 'active')
-            ->get(['id', 'whmcs_dept_id', 'timezone']);
-        foreach ($myDepts as $md) {
-            $deptMap[$md->whmcs_dept_id] = [
-                'id' => $md->id,
-                'timezone' => $md->timezone
-            ];
-        }
-        foreach ($navbar->getChildren() as $child) {
-            bh_process_menu_item($child, $availService, $deptMap);
-        }
-    } catch (\Exception $e) {}
-});
 
 /**
  * Show widget on support ticket view page
