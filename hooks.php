@@ -142,28 +142,145 @@ add_hook('ClientAreaPage', 1, function ($vars) {
 });
 
 /**
- * Show widget on support ticket submission page
+ * Show widget on support ticket submission page and inject department status
  */
 add_hook('ClientAreaPageSubmitTicket', 1, function ($vars) {
     try {
         $settingsRepo = new SettingsRepository();
-        if ($settingsRepo->get('show_on_tickets', '1') !== '1') {
-            return [];
-        }
+        $showOnTickets = $settingsRepo->get('show_on_tickets', '1') === '1';
 
         $availService = new AvailabilityService();
         $status = $availService->getCurrentStatus();
 
-        return [
-            'bh_show_widget'  => true,
+        $returnVars = [
+            'bh_show_widget'  => $showOnTickets,
             'bh_status'       => $status,
             'bh_is_open'      => $status['is_open'],
             'bh_status_label' => $status['label'],
         ];
+
+        // Inject status into the $departments array for the Lagom cards
+        if (!empty($vars['departments']) && is_array($vars['departments'])) {
+            // Build map of WHMCS dept ID to Business Hours dept ID
+            $deptMap = [];
+            try {
+                $myDepts = \Illuminate\Database\Capsule\Manager::table(Bootstrap::TABLE_PREFIX . 'departments')
+                    ->whereNotNull('whmcs_dept_id')
+                    ->where('status', 'active')
+                    ->get(['id', 'whmcs_dept_id', 'timezone']);
+                foreach ($myDepts as $md) {
+                    $deptMap[$md->whmcs_dept_id] = [
+                        'id' => $md->id,
+                        'timezone' => $md->timezone
+                    ];
+                }
+            } catch (\Exception $e) {}
+
+            $newDepartments = [];
+            foreach ($vars['departments'] as $dept) {
+                if (isset($dept['id']) && isset($deptMap[$dept['id']])) {
+                    $myDeptId = $deptMap[$dept['id']]['id'];
+                    $tz = $deptMap[$dept['id']]['timezone'];
+                    
+                    $deptStatus = $availService->getCurrentStatus($myDeptId);
+                    $isOpen = $deptStatus['is_open'] ?? false;
+                    $label = $deptStatus['label'] ?? 'Unknown';
+                    $hours = $deptStatus['today_hours'] ?? '';
+                    
+                    $badgeClass = $isOpen ? 'bh-online' : 'bh-offline';
+                    $dotClass = $isOpen ? 'bh-dot--online' : 'bh-dot--offline';
+                    
+                    if (isset($deptStatus['source']) && $deptStatus['source'] === 'holiday') {
+                        $badgeClass = 'bh-holiday';
+                        $dotClass = 'bh-dot--holiday';
+                    }
+
+                    // Append the beautiful badge to the description
+                    $html = '<div class="bh-dept-status-wrapper">';
+                    $html .= '<span class="bh-badge ' . $badgeClass . '"><span class="bh-dot ' . $dotClass . '"></span> ' . htmlspecialchars($label) . '</span>';
+                    if ($hours) {
+                        $html .= '<span class="bh-dept-hours">' . htmlspecialchars($hours) . ' (' . htmlspecialchars($tz) . ')</span>';
+                    }
+                    $html .= '</div>';
+
+                    $dept['description'] .= $html;
+                }
+                $newDepartments[] = $dept;
+            }
+            $returnVars['departments'] = $newDepartments;
+        }
+
+        return $returnVars;
     } catch (\Exception $e) {
         return [];
     }
 });
+
+/**
+ * Recursive function to inject status into menu items
+ */
+function bh_process_menu_item(\WHMCS\View\Menu\Item $item, $availService, $deptMap) {
+    $uri = $item->getUri();
+    if (strpos($uri, 'submitticket.php?step=2&deptid=') !== false) {
+        if (preg_match('/deptid=(\d+)/', $uri, $matches)) {
+            $whmcsDeptId = (int)$matches[1];
+            if (isset($deptMap[$whmcsDeptId])) {
+                $myDeptId = $deptMap[$whmcsDeptId]['id'];
+                $tz = $deptMap[$whmcsDeptId]['timezone'];
+                
+                $deptStatus = $availService->getCurrentStatus($myDeptId);
+                $isOpen = $deptStatus['is_open'] ?? false;
+                $label = $deptStatus['label'] ?? 'Unknown';
+                $hours = $deptStatus['today_hours'] ?? '';
+                
+                $badgeClass = $isOpen ? 'bh-online' : 'bh-offline';
+                $dotClass = $isOpen ? 'bh-dot--online' : 'bh-dot--offline';
+                
+                $htmlLabel = $item->getLabel();
+                $htmlLabel .= '<div class="bh-nav-status">';
+                $htmlLabel .= '<span class="bh-badge bh-badge-small ' . $badgeClass . '"><span class="bh-dot ' . $dotClass . '"></span> ' . htmlspecialchars($label) . '</span>';
+                if ($hours) {
+                    $htmlLabel .= '<br><span class="bh-nav-hours">' . htmlspecialchars($hours) . ' (' . htmlspecialchars($tz) . ')</span>';
+                }
+                $htmlLabel .= '</div>';
+                
+                $item->setLabel($htmlLabel);
+                $item->setExtras(array_merge($item->getExtras(), ['html' => true]));
+            }
+        }
+    }
+    
+    foreach ($item->getChildren() as $child) {
+        bh_process_menu_item($child, $availService, $deptMap);
+    }
+}
+
+/**
+ * Hook into ClientAreaPrimaryNavbar and ClientAreaSecondaryNavbar
+ */
+$navbarHookFunc = function (\WHMCS\View\Menu\Item $navbar) {
+    try {
+        $availService = new AvailabilityService();
+        $deptMap = [];
+        $myDepts = \Illuminate\Database\Capsule\Manager::table(Bootstrap::TABLE_PREFIX . 'departments')
+            ->whereNotNull('whmcs_dept_id')
+            ->where('status', 'active')
+            ->get(['id', 'whmcs_dept_id', 'timezone']);
+        foreach ($myDepts as $md) {
+            $deptMap[$md->whmcs_dept_id] = [
+                'id' => $md->id,
+                'timezone' => $md->timezone
+            ];
+        }
+        
+        foreach ($navbar->getChildren() as $child) {
+            bh_process_menu_item($child, $availService, $deptMap);
+        }
+    } catch (\Exception $e) {}
+};
+
+add_hook('ClientAreaPrimaryNavbar', 1, $navbarHookFunc);
+add_hook('ClientAreaSecondaryNavbar', 1, $navbarHookFunc);
 
 /**
  * Show widget on support ticket view page
