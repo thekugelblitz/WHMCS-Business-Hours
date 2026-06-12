@@ -87,55 +87,6 @@ add_hook('ClientAreaFooterOutput', 1, function ($vars) {
     return $js;
 });
 
-/**
- * Add sidebar widget to the client area primary sidebar
- */
-add_hook('ClientAreaPrimarySidebar', 1, function (\WHMCS\View\Menu\Item $primarySidebar) {
-    try {
-        $settingsRepo = new SettingsRepository();
-        $showSidebar = $settingsRepo->get('show_sidebar', '1');
-
-        if ($showSidebar !== '1') {
-            return;
-        }
-
-        $widgetService = new WidgetService();
-        $data = $widgetService->getWidgetData('sidebar', []);
-
-        // Build the sidebar HTML
-        $html = buildSidebarWidget($data);
-
-        $sidebarItem = $primarySidebar->addChild('BusinessHoursWidget', [
-            'label'  => 'Support Hours',
-            'uri'    => '#',
-            'order'  => 99,
-            'icon'   => 'fas fa-clock',
-        ]);
-
-        $sidebarItem->setBodyHtml($html);
-    } catch (\Exception $e) {
-        // Never break the sidebar
-    }
-});
-
-/**
- * Show holiday announcement banner on client area pages
- */
-add_hook('ClientAreaPage', 1, function ($vars) {
-    try {
-        $settingsRepo = new SettingsRepository();
-
-        // Process shortcodes in page output if available
-        // (Smarty template variables will be set here)
-        $availService = new AvailabilityService();
-        $status = $availService->getCurrentStatus();
-
-        return [
-            'bh_status'       => $status,
-            'bh_is_open'      => $status['is_open'],
-            'bh_status_label' => $status['label'],
-            'bh_today_hours'  => $status['today_hours'] ?? 'N/A',
-        ];
     } catch (\Exception $e) {
         return [];
     }
@@ -251,9 +202,82 @@ function bh_process_menu_item(\WHMCS\View\Menu\Item $item, $availService, $deptM
 }
 
 /**
- * Hook into ClientAreaPrimaryNavbar and ClientAreaSecondaryNavbar
+ * Hook into ClientAreaPrimaryNavbar to add Support Hours dropdown and modify existing links
  */
-$navbarHookFunc = function (\WHMCS\View\Menu\Item $navbar) {
+add_hook('ClientAreaPrimaryNavbar', 1, function (\WHMCS\View\Menu\Item $navbar) {
+    try {
+        $availService = new AvailabilityService();
+        
+        // 1. Add the main Support Hours dropdown to the header
+        $overallStatus = $availService->getCurrentStatus();
+        $isOpen = $overallStatus['is_open'] ?? false;
+        $label  = $overallStatus['label'] ?? 'Unknown';
+        
+        $badgeClass = $isOpen ? 'label label-success' : 'label label-danger';
+        if (isset($overallStatus['source']) && $overallStatus['source'] === 'holiday') {
+            $badgeClass = 'label label-info';
+        }
+        
+        $supportNav = $navbar->addChild('SupportHoursHeader', [
+            'label' => 'Support: <span class="' . $badgeClass . '">' . htmlspecialchars($label) . '</span>',
+            'uri' => '#',
+            'order' => 99,
+        ]);
+        $supportNav->setExtras(['html' => true]);
+
+        // Fetch all active departments to build the dropdown children
+        $myDepts = \Illuminate\Database\Capsule\Manager::table(Bootstrap::TABLE_PREFIX . 'departments')
+            ->whereNotNull('whmcs_dept_id')
+            ->where('status', 'active')
+            ->get(['id', 'whmcs_dept_id', 'timezone']);
+
+        $deptMap = [];
+        foreach ($myDepts as $md) {
+            $deptMap[$md->whmcs_dept_id] = [
+                'id' => $md->id,
+                'timezone' => $md->timezone
+            ];
+            
+            // Fetch status for this specific department
+            $deptStatus = $availService->getCurrentStatus($md->id);
+            $dIsOpen = $deptStatus['is_open'] ?? false;
+            $dLabel  = $deptStatus['label'] ?? 'Unknown';
+            $dHours  = $deptStatus['today_hours'] ?? '';
+            
+            $dBadgeClass = $dIsOpen ? 'label label-success' : 'label label-danger';
+            if (isset($deptStatus['source']) && $deptStatus['source'] === 'holiday') {
+                $dBadgeClass = 'label label-info';
+            }
+            
+            // Get WHMCS department name natively
+            $whmcsDept = \Illuminate\Database\Capsule\Manager::table('tblticketdepartments')
+                ->where('id', $md->whmcs_dept_id)
+                ->first(['name']);
+            $deptName = $whmcsDept ? $whmcsDept->name : 'Department';
+
+            $childHtml = '<div style="line-height: 1.4; min-width: 250px; white-space: normal; padding: 5px 0;">';
+            $childHtml .= '<strong>' . htmlspecialchars($deptName) . '</strong> <span class="' . $dBadgeClass . '" style="float: right; font-size: 10px; padding: 2px 6px;">' . htmlspecialchars($dLabel) . '</span>';
+            if ($dHours) {
+                $childHtml .= '<br><span class="text-muted small" style="font-size: 11px;">' . htmlspecialchars($dHours) . ' (' . htmlspecialchars($md->timezone) . ')</span>';
+            }
+            $childHtml .= '</div>';
+            
+            $supportNav->addChild('dept_' . $md->id, [
+                'label' => $childHtml,
+                'uri' => 'submitticket.php?step=2&deptid=' . $md->whmcs_dept_id,
+            ])->setExtras(['html' => true]);
+        }
+        
+        // 2. Modify any existing links in the navbar recursively
+        foreach ($navbar->getChildren() as $child) {
+            if ($child->getName() !== 'SupportHoursHeader') {
+                bh_process_menu_item($child, $availService, $deptMap);
+            }
+        }
+    } catch (\Exception $e) {}
+});
+
+add_hook('ClientAreaSecondaryNavbar', 1, function (\WHMCS\View\Menu\Item $navbar) {
     try {
         $availService = new AvailabilityService();
         $deptMap = [];
@@ -267,15 +291,11 @@ $navbarHookFunc = function (\WHMCS\View\Menu\Item $navbar) {
                 'timezone' => $md->timezone
             ];
         }
-        
         foreach ($navbar->getChildren() as $child) {
             bh_process_menu_item($child, $availService, $deptMap);
         }
     } catch (\Exception $e) {}
-};
-
-add_hook('ClientAreaPrimaryNavbar', 1, $navbarHookFunc);
-add_hook('ClientAreaSecondaryNavbar', 1, $navbarHookFunc);
+});
 
 /**
  * Show widget on support ticket view page
