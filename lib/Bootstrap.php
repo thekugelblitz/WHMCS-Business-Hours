@@ -159,8 +159,27 @@ class Bootstrap
      */
     public function getAssetUrl($asset)
     {
-        $systemUrl = isset($GLOBALS['CONFIG']['SystemURL']) ? rtrim($GLOBALS['CONFIG']['SystemURL'], '/') . '/' : '';
-        return $systemUrl . 'modules/addons/' . self::MODULE_NAME . '/assets/' . $asset;
+        $systemUrl = '';
+        if (class_exists('\WHMCS\Utility\Environment\WebHelper')) {
+            $systemUrl = \WHMCS\Utility\Environment\WebHelper::getBaseUrl();
+        } else {
+            $systemUrl = isset($GLOBALS['CONFIG']['SystemURL']) ? $GLOBALS['CONFIG']['SystemURL'] : '';
+        }
+        
+        $systemUrl = rtrim($systemUrl, '/');
+        
+        // Fallback if SystemURL is empty or relative
+        if (empty($systemUrl) || strpos($systemUrl, 'http') !== 0) {
+            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http');
+            $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+            $dir = dirname($_SERVER['PHP_SELF']);
+            if ($dir === '/' || $dir === '\\') {
+                $dir = '';
+            }
+            $systemUrl = $protocol . '://' . $host . $dir;
+        }
+        
+        return $systemUrl . '/modules/addons/' . self::MODULE_NAME . '/assets/' . $asset;
     }
 
     /**

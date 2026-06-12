@@ -84,6 +84,82 @@ add_hook('ClientAreaFooterOutput', 1, function ($vars) {
         $js .= '<script src="' . $bootstrap->getAssetUrl('js/live-update.js') . '"></script>' . "\n";
     }
 
+    // Dynamic UI Injector for submitticket.php (bypasses Lagom's strip_tags)
+    if (isset($vars['filename']) && $vars['filename'] === 'submitticket') {
+        $availService = new AvailabilityService();
+        $deptData = [];
+        
+        try {
+            $myDepts = \Illuminate\Database\Capsule\Manager::table(Bootstrap::TABLE_PREFIX . 'departments')
+                ->whereNotNull('whmcs_dept_id')
+                ->where('status', 'active')
+                ->get(['id', 'whmcs_dept_id', 'timezone']);
+            
+            foreach ($myDepts as $md) {
+                $deptStatus = $availService->getCurrentStatus($md->id);
+                $isOpen = $deptStatus['is_open'] ?? false;
+                $label = $deptStatus['label'] ?? 'Unknown';
+                $hours = $deptStatus['today_hours'] ?? '';
+                
+                $badgeClass = $isOpen ? 'bh-online' : 'bh-offline';
+                $dotClass = $isOpen ? 'bh-dot--online' : 'bh-dot--offline';
+                if (isset($deptStatus['source']) && $deptStatus['source'] === 'holiday') {
+                    $badgeClass = 'bh-holiday';
+                    $dotClass = 'bh-dot--holiday';
+                }
+
+                $html = '<div class="bh-dept-status-wrapper">';
+                $html .= '<span class="bh-badge ' . $badgeClass . '"><span class="bh-dot ' . $dotClass . '"></span> ' . htmlspecialchars($label) . '</span>';
+                if ($hours) {
+                    $html .= '<span class="bh-dept-hours">' . htmlspecialchars($hours) . ' (' . htmlspecialchars($md->timezone) . ')</span>';
+                }
+                $html .= '</div>';
+                
+                $deptData[$md->whmcs_dept_id] = $html;
+            }
+        } catch (\Exception $e) {}
+
+        if (!empty($deptData)) {
+            $jsonMap = json_encode($deptData);
+            $js .= <<<HTML
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var deptData = {$jsonMap};
+    
+    // Attempt to find Lagom department cards
+    // Lagom uses links or divs that eventually contain submitticket.php?step=2&deptid=XX
+    var deptLinks = document.querySelectorAll('a[href*="deptid="], div[data-id]');
+    
+    deptLinks.forEach(function(el) {
+        var deptId = null;
+        if (el.hasAttribute('href')) {
+            var match = el.getAttribute('href').match(/deptid=(\d+)/);
+            if (match) deptId = match[1];
+        } else if (el.hasAttribute('data-id')) {
+            deptId = el.getAttribute('data-id');
+        }
+        
+        if (deptId && deptData[deptId]) {
+            // Find the description or inner container to append the badge
+            var target = el.querySelector('.desc, .description, p') || el;
+            
+            // If target is the main container, append to it, else append after the description text
+            var wrapper = document.createElement('div');
+            wrapper.innerHTML = deptData[deptId];
+            
+            if (target === el) {
+                el.appendChild(wrapper.firstChild);
+            } else {
+                target.appendChild(wrapper.firstChild);
+            }
+        }
+    });
+});
+</script>
+HTML;
+        }
+    }
+
     return $js;
 });
 
@@ -159,56 +235,8 @@ add_hook('ClientAreaPageSubmitTicket', 1, function ($vars) {
             'bh_status_label' => $status['label'],
         ];
 
-        // Inject status into the $departments array for the Lagom cards
-        if (!empty($vars['departments']) && is_array($vars['departments'])) {
-            // Build map of WHMCS dept ID to Business Hours dept ID
-            $deptMap = [];
-            try {
-                $myDepts = \Illuminate\Database\Capsule\Manager::table(Bootstrap::TABLE_PREFIX . 'departments')
-                    ->whereNotNull('whmcs_dept_id')
-                    ->where('status', 'active')
-                    ->get(['id', 'whmcs_dept_id', 'timezone']);
-                foreach ($myDepts as $md) {
-                    $deptMap[$md->whmcs_dept_id] = [
-                        'id' => $md->id,
-                        'timezone' => $md->timezone
-                    ];
-                }
-            } catch (\Exception $e) {}
-
-            $newDepartments = [];
-            foreach ($vars['departments'] as $dept) {
-                if (isset($dept['id']) && isset($deptMap[$dept['id']])) {
-                    $myDeptId = $deptMap[$dept['id']]['id'];
-                    $tz = $deptMap[$dept['id']]['timezone'];
-                    
-                    $deptStatus = $availService->getCurrentStatus($myDeptId);
-                    $isOpen = $deptStatus['is_open'] ?? false;
-                    $label = $deptStatus['label'] ?? 'Unknown';
-                    $hours = $deptStatus['today_hours'] ?? '';
-                    
-                    $badgeClass = $isOpen ? 'bh-online' : 'bh-offline';
-                    $dotClass = $isOpen ? 'bh-dot--online' : 'bh-dot--offline';
-                    
-                    if (isset($deptStatus['source']) && $deptStatus['source'] === 'holiday') {
-                        $badgeClass = 'bh-holiday';
-                        $dotClass = 'bh-dot--holiday';
-                    }
-
-                    // Append the beautiful badge to the description
-                    $html = '<div class="bh-dept-status-wrapper">';
-                    $html .= '<span class="bh-badge ' . $badgeClass . '"><span class="bh-dot ' . $dotClass . '"></span> ' . htmlspecialchars($label) . '</span>';
-                    if ($hours) {
-                        $html .= '<span class="bh-dept-hours">' . htmlspecialchars($hours) . ' (' . htmlspecialchars($tz) . ')</span>';
-                    }
-                    $html .= '</div>';
-
-                    $dept['description'] .= $html;
-                }
-                $newDepartments[] = $dept;
-            }
-            $returnVars['departments'] = $newDepartments;
-        }
+        // No longer modifying $vars['departments'] via PHP to avoid Lagom strip_tags filter.
+        // Handled via JS in ClientAreaFooterOutput instead.
 
         return $returnVars;
     } catch (\Exception $e) {
