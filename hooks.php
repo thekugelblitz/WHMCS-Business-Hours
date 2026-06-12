@@ -64,6 +64,26 @@ add_hook('ClientAreaHeadOutput', 1, function ($vars) {
         $css .= '<style>.bh-widget{' . implode(';', $cssVars) . '}</style>' . "\n";
     }
 
+    // Bulletproof Inline CSS for UI Injections to bypass any external loading/caching issues
+    $css .= <<<CSS
+<style>
+.bh-dept-status-wrapper { margin-top: 12px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #64748b; font-weight: 500; }
+.bh-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1; }
+.bh-badge-small { padding: 2px 6px; font-size: 10px; }
+.bh-online { background-color: #e6f4ea; color: #1e8e3e; }
+.bh-offline { background-color: #fce8e6; color: #d93025; }
+.bh-holiday { background-color: #f3e8fd; color: #9333ea; }
+.bh-dept-hours { color: #64748b; }
+.bh-nav-status { margin-top: 4px; line-height: 1.4; display: block; }
+.bh-nav-hours { font-size: 11px; color: #94a3b8; }
+.bh-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; position: relative; }
+.bh-dot--online { background: #1e8e3e; animation: bh-pulse 2s infinite; }
+.bh-dot--offline { background: #d93025; }
+.bh-dot--holiday { background: #9333ea; }
+@keyframes bh-pulse { 0% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(30, 142, 62, 0); } 100% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0); } }
+</style>
+CSS;
+
     return $css;
 });
 
